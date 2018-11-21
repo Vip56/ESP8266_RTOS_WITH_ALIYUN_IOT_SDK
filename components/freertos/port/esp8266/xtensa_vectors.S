@@ -122,18 +122,19 @@ STRUCT_END(HighPriFrame)
 #define PRI_N_STACK_SIZE     512    /* default to 1 kB stack for each level-N handling */
 #define PRI_N_STACK_SIZE2    256    /* default to 1 kB stack for each level-N handling */
 
-#define PANIC_STK_FRMSZ      (XT_STK_FRMSZ + 0x10)
+#define PANIC_STK_FRMSZ      0x60
+
+
+#define CHIP_INTERRUPT_STK_MAX 1024
 
     .global panicHandler
 
     //  Allocate save area and stack:
     //  (must use .bss, not .comm, because the subsequent .set does not work otherwise)
-    .global _chip_nmi_stk
     .section .bss, "aw"
     .align  16
-_chip_nmi_stk:    .space  PRI_N_STACK_SIZE + HESF_TOTALSIZE + PRI_N_STACK_SIZE2 + HESF_TOTALSIZE
+LABEL(_Pri_,_Stack):    .space  PRI_N_STACK_SIZE + HESF_TOTALSIZE + PRI_N_STACK_SIZE2 + HESF_TOTALSIZE
 
-    .global LoadStoreErrorHandlerStack
     .balign 16
 LoadStoreErrorHandlerStack:
     .word   0       # a0
@@ -157,15 +158,15 @@ LoadStoreErrorHandlerStack_reentry:
     .data
     .global LABEL(_Pri_,_HandlerAddress)
 LABEL(_Pri_,_HandlerAddress):   .space 4
-    .global _chip_nmi_cnt
-_chip_nmi_cnt:   .space 4
+    .global LABEL(_Pri_, _NMICount)
+LABEL(_Pri_,_NMICount):   .space 4
 #endif
 
     .section    .data, "aw"
     .global     _chip_interrupt_stk, _chip_interrupt_tmp
     .align      16
 _chip_interrupt_stk:
-    .space       CONFIG_FREERTOS_ISR_STACKSIZE
+    .space       CHIP_INTERRUPT_STK_MAX
 _chip_interrupt_tmp:
     .word        0
 
@@ -191,7 +192,7 @@ LoadStoreErrorHandler:
         rsr     a0, excsave1    # restore a0 saved by UserExceptionVector
         wsr     a1, excsave1    # save a1 to excsave1, a1 can be used as varalbe
 
-        movi    a1, _chip_nmi_cnt
+        movi    a1, LABEL(_Pri_,_NMICount)
         l32i    a1, a1, 0
 
         bnez    a1, LoadStoreErrorHandler_reentry
@@ -927,8 +928,7 @@ _xt_user_entry1:
     s32i    a1, a0, 0
     mov     a1, a0
 
-    movi    a0, _xt_isr_handler
-    callx0	a0
+	call0	_xt_isr_handler
 
     movi    a0, _chip_interrupt_tmp
     l32i    a1, a0, 0
@@ -1082,14 +1082,14 @@ _xt_nmi:
     ADD HIGH PRIORITY NON-MASKABLE INTERRUPT (NMI) HANDLER CODE HERE.
     */
 
-    movi    a0, _chip_nmi_cnt
+    movi    a0, LABEL(_Pri_,_NMICount)
     l32i    a0, a0, 0
 
     bnez    a0, nmi_reentry
-    movi    a0, _chip_nmi_stk + PRI_N_STACK_SIZE  // get ptr to save area
+    movi    a0, LABEL(_Pri_,_Stack) + PRI_N_STACK_SIZE  // get ptr to save area
     j       nmi_common
 nmi_reentry:
-    movi    a0, _chip_nmi_stk + PRI_N_STACK_SIZE + HESF_TOTALSIZE + PRI_N_STACK_SIZE2// get ptr to save area
+    movi    a0, LABEL(_Pri_,_Stack) + PRI_N_STACK_SIZE + HESF_TOTALSIZE + PRI_N_STACK_SIZE2// get ptr to save area
 nmi_common:
 
     // interlock
@@ -1188,7 +1188,7 @@ nmi_reentried:
 
 #endif /* __XTENSA_WINDOWED_ABI__ */
 
-    //movi    a1, _chip_nmi_stk + PRI_N_STACK_SIZE  // get ptr to save area (is also initial stack ptr)
+    //movi    a1, LABEL(_Pri_,_Stack) + PRI_N_STACK_SIZE  // get ptr to save area (is also initial stack ptr)
     mov     a1, a0
     movi    a0, 0       // mark start of call frames in stack
 
@@ -1249,7 +1249,7 @@ nmi_reentried:
 #endif
 
     //save NMI Count
-    movi    a2, _chip_nmi_cnt
+    movi    a2, LABEL(_Pri_,_NMICount)
     l32i    a3, a2, 0
     addi    a3, a3, 1
     s32i    a3, a2, 0
@@ -1264,16 +1264,16 @@ nmi_reentried:
 #endif
 
     //Restore NMI level
-    movi    a2, _chip_nmi_cnt
+    movi    a2, LABEL(_Pri_,_NMICount)
     l32i    a3, a2, 0
     addi    a3, a3, -1
     s32i    a3, a2, 0
     
     beqi    a3, 1, nmi_reentry2
-    movi    a1, _chip_nmi_stk + PRI_N_STACK_SIZE  // get ptr to save area
+    movi    a1, LABEL(_Pri_,_Stack) + PRI_N_STACK_SIZE  // get ptr to save area
     j       nmi_common2
 nmi_reentry2:
-    movi    a1, _chip_nmi_stk + PRI_N_STACK_SIZE + HESF_TOTALSIZE + PRI_N_STACK_SIZE2// get ptr to save area
+    movi    a1, LABEL(_Pri_,_Stack) + PRI_N_STACK_SIZE + HESF_TOTALSIZE + PRI_N_STACK_SIZE2// get ptr to save area
 nmi_common2:
 
 
@@ -1333,7 +1333,7 @@ nmi_common2:
     //  Note:  register window has rotated, ie. a0..a15 clobbered.
 
     //  Reload initial stack pointer:
-    movi    a1, _chip_nmi_stk + PRI_N_STACK_SIZE  // - 16
+    movi    a1, LABEL(_Pri_,_Stack) + PRI_N_STACK_SIZE  // - 16
     movi    a6, XCHAL_NUM_AREGS - 8     // how many saved so far
     addi    a7, a1, -8*4
 
@@ -1421,7 +1421,96 @@ nmi_rfi:
 #endif
 #endif  /* NMI */
 
-    .global     Cache_Read_Enable_New
+    .section    .text, "ax"
+    .global     ShowCritical
+    .type       ShowCritical, @function
+    .align      4
+ShowCritical:
+    movi    a2, LABEL(_Pri_,_NMICount)
+    l32i    a2, a2, 0
+    bnei    a2, 1, nmi_reentry_panic
+
+    /*
+     * a2 == 1, the function is not NMI exception function and its stack
+     * is stored at LABEL(_Pri_,_Stack) + PRI_N_STACK_SIZE
+     *
+     * a2 >= 1, the function is NMI exception function and its stack
+     * is stored at LABEL(_Pri_,_Stack) + PRI_N_STACK_SIZE + HESF_TOTALSIZE + PRI_N_STACK_SIZE2
+     */ 
+    movi    a2, LABEL(_Pri_,_Stack) + PRI_N_STACK_SIZE
+    j       nmi_common_panic
+nmi_reentry_panic:
+    movi    a2, LABEL(_Pri_,_Stack) + PRI_N_STACK_SIZE + HESF_TOTALSIZE + PRI_N_STACK_SIZE2
+nmi_common_panic:
+    movi    a1, 0XFFFFFFFF
+    movi    a3, LABEL(_Pri_,_NMICount)
+    s32i    a1, a3, 0
+
+    movi    a1, _chip_interrupt_tmp
+    addi    a1, a1, -XT_STK_FRMSZ
+
+    l32i    a3, a2, HESF_AR(0)
+    s32i    a3, a1, XT_STK_A0
+
+    l32i    a3, a2, HESF_AR(1)
+    s32i    a3, a1, XT_STK_A1
+
+    l32i    a3, a2, HESF_AR(2)
+    s32i    a3, a1, XT_STK_A2
+
+    l32i    a3, a2, HESF_AR(3)
+    s32i    a3, a1, XT_STK_A3
+
+    l32i    a3, a2, HESF_AR(4)
+    s32i    a3, a1, XT_STK_A4
+
+    l32i    a3, a2, HESF_AR(5)
+    s32i    a3, a1, XT_STK_A5
+
+    l32i    a3, a2, HESF_AR(6)
+    s32i    a3, a1, XT_STK_A6
+
+    l32i    a3, a2, HESF_AR(7)
+    s32i    a3, a1, XT_STK_A7
+
+    l32i    a3, a2, HESF_AR(8)
+    s32i    a3, a1, XT_STK_A8
+
+    l32i    a3, a2, HESF_AR(9)
+    s32i    a3, a1, XT_STK_A9
+
+    l32i    a3, a2, HESF_AR(10)
+    s32i    a3, a1, XT_STK_A10
+
+    l32i    a3, a2, HESF_AR(11)
+    s32i    a3, a1, XT_STK_A11
+
+    l32i    a3, a2, HESF_AR(12)
+    s32i    a3, a1, XT_STK_A12
+
+    l32i    a3, a2, HESF_AR(13)
+    s32i    a3, a1, XT_STK_A13
+
+    l32i    a3, a2, HESF_AR(14)
+    s32i    a3, a1, XT_STK_A14
+
+    l32i    a3, a2, HESF_AR(15)
+    s32i    a3, a1, XT_STK_A15
+
+    l32i    a3, a2, HESF_EXCCAUSE
+    s32i    a3, a1, XT_STK_EXCCAUSE
+
+    l32i    a3, a2, HESF_EPC3
+    s32i    a3, a1, XT_STK_PC
+
+    l32i    a3, a2, HESF_EPS3
+    s32i    a3, a1, XT_STK_PS
+
+    mov     a2, a1
+
+    call0   panicHandler
+
+
     .global     _xt_ext_panic
     .type       _xt_ext_panic, @function
     .align      4
@@ -1441,21 +1530,10 @@ _xt_ext_panic:
     movi    a0, PS_INTLEVEL(5) | PS_UM
     wsr     a0, PS
 
-    mov     a0, sp
-
-    movi    sp, _chip_nmi_cnt
-    l32i    sp, sp, 0
-
-    beqz    sp, _panic_add_nmi_stk
     /* Allocate exception frame and save minimal context. */
+    mov     a0, sp
     movi    sp, _chip_interrupt_tmp
-    j       _panic_dump_reg
-
-_panic_add_nmi_stk:
-    movi    sp, LoadStoreErrorHandlerStack
-
-_panic_dump_reg:
-    addi    sp, sp, -PANIC_STK_FRMSZ
+    addi    sp, sp, -XT_STK_FRMSZ
     s32i    a0, sp, XT_STK_A1
 
     rsr     a0, EXCSAVE_2                   /* save interruptee's PS */
@@ -1478,10 +1556,6 @@ _panic_dump_reg:
 
     s32i    a0, sp, XT_STK_A0
 
-    call0   Cache_Read_Enable_New
-
     //Call panic handler
     mov     a2, sp
-    movi    a3, 0
-    movi    a0, panicHandler
-    callx0  a0
+    call0   panicHandler

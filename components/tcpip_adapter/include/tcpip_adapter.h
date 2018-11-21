@@ -40,7 +40,6 @@
 
 #define CONFIG_TCPIP_LWIP 1
 #define CONFIG_DHCP_STA_LIST 1
-#define TCPIP_ADAPTER_IPV6 LWIP_IPV6
 
 #if CONFIG_TCPIP_LWIP
 #include "lwip/ip_addr.h"
@@ -74,17 +73,9 @@ typedef struct {
     ip4_addr_t gw;
 } tcpip_adapter_ip_info_t;
 
-#if TCPIP_ADAPTER_IPV6
 typedef struct {
     ip6_addr_t ip;
 } tcpip_adapter_ip6_info_t;
-#else
-typedef struct {
-    struct {
-        uint32_t addr[4];
-    } ip;
-} tcpip_adapter_ip6_info_t;
-#endif
 
 typedef dhcps_lease_t tcpip_adapter_dhcps_lease_t;
 
@@ -358,7 +349,6 @@ esp_err_t tcpip_adapter_set_old_ip_info(tcpip_adapter_if_t tcpip_if, tcpip_adapt
  */
 esp_err_t tcpip_adapter_create_ip6_linklocal(tcpip_adapter_if_t tcpip_if);
 
-#if TCPIP_ADAPTER_IPV6
 /**
  * @brief  get interface's linkloacl IPv6 information
  *
@@ -372,7 +362,6 @@ esp_err_t tcpip_adapter_create_ip6_linklocal(tcpip_adapter_if_t tcpip_if);
  *         ESP_ERR_TCPIP_ADAPTER_INVALID_PARAMS
  */
 esp_err_t tcpip_adapter_get_ip6_linklocal(tcpip_adapter_if_t tcpip_if, ip6_addr_t *if_ip6);
-#endif
 
 #if 0
 esp_err_t tcpip_adapter_get_mac(tcpip_adapter_if_t tcpip_if, uint8_t *mac);
@@ -493,9 +482,9 @@ esp_err_t tcpip_adapter_eth_input(void *buffer, uint16_t len, void *eb);
  *
  * This function should be installed by esp_wifi_reg_rxcb, so WiFi packets will be forward to TCPIP stack.
  *
- * @param[in]  buffer: the received data point
- * @param[in]  len: the received data length
- * @param[in]  eb: parameter
+ * @param[in]  void *buffer: the received data point
+ * @param[in]  uint16_t len: the received data length
+ * @param[in]  void *eb: parameter
  *
  * @return ESP_OK
  */
@@ -506,9 +495,9 @@ esp_err_t tcpip_adapter_sta_input(void *buffer, uint16_t len, void *eb);
  *
  * This function should be installed by esp_wifi_reg_rxcb, so WiFi packets will be forward to TCPIP stack.
  *
- * @param[in]  buffer: the received data point
- * @param[in]  len: the received data length
- * @param[in]  eb: parameter
+ * @param[in]  void *buffer: the received data point
+ * @param[in]  uint16_t len: the received data length
+ * @param[in]  void *eb: parameter
  *
  * @return ESP_OK
  */
@@ -519,7 +508,7 @@ esp_err_t tcpip_adapter_ap_input(void *buffer, uint16_t len, void *eb);
  *
  * Get WiFi interface from TCPIP interface struct pointer.
  *
- * @param[in]  dev: adapter interface
+ * @param[in]  void *dev: adapter interface
  *
  * @return ESP_IF_WIFI_STA
  *         ESP_IF_WIFI_AP
@@ -531,8 +520,8 @@ esp_interface_t tcpip_adapter_get_esp_if(void *dev);
 /**
  * @brief  Get the station information list
  *
- * @param[in]   wifi_sta_list: station list info
- * @param[out]  tcpip_sta_list: station list info
+ * @param[in]   wifi_sta_list_t *wifi_sta_list: station list info
+ * @param[out]  tcpip_adapter_sta_list_t *tcpip_sta_list: station list info
  *
  * @return ESP_OK
  *         ESP_ERR_TCPIP_ADAPTER_NO_MEM
@@ -569,24 +558,13 @@ esp_err_t tcpip_adapter_get_hostname(tcpip_adapter_if_t tcpip_if, const char **h
  * @brief  Get the LwIP netif* that is assigned to the interface
  *
  * @param[in]   tcpip_if: the interface which we will get the hostname
- * @param[out]  netif: pointer to fill the resulting interface
+ * @param[out]  void ** netif: pointer to fill the resulting interface
  *
  * @return ESP_OK:success
  *         ESP_ERR_TCPIP_ADAPTER_IF_NOT_READY:interface status error
  *         ESP_ERR_TCPIP_ADAPTER_INVALID_PARAMS:parameter error
  */
 esp_err_t tcpip_adapter_get_netif(tcpip_adapter_if_t tcpip_if, void ** netif);
-
-
-/**
- * @brief  Test if supplied interface is up or down
- *
- * @param[in]   tcpip_if: the interface which we will get the hostname
- *
- * @return  true:  tcpip_if is UP
- *          false: tcpip_if id DOWN
- */
-bool tcpip_adapter_is_netif_up(tcpip_adapter_if_t tcpip_if);
 
 #ifdef __cplusplus
 }

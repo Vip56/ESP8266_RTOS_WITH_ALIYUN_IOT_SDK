@@ -31,6 +31,18 @@
 #include "esp_newlib.h"
 #endif
 
+static uint32_t IRAM_ATTR enter_critical_wrapper(void)
+{
+    taskENTER_CRITICAL();
+
+    return 0;
+}
+
+static void IRAM_ATTR exit_critical_wrapper(uint32_t tmp)
+{
+    taskEXIT_CRITICAL();
+}
+
 static void *task_create_wrapper(void *task_func, const char *name, uint32_t stack_depth, void *param, uint32_t prio)
 {
     portBASE_TYPE ret;
@@ -272,57 +284,77 @@ static bool timer_delete_wrapper(void *timer, uint32_t ticks)
     return xTimerDelete(timer, ticks);
 }
 
-static void *malloc_wrapper(uint32_t s, uint32_t cap, const char *file, size_t line)
+static void *malloc_wrapper(uint32_t s, uint32_t cap)
 {
-    uint32_t os_caps;
+    bool iram;
+    void *return_addr = (void *)__builtin_return_address(0);
 
     if (cap & (OSI_MALLOC_CAP_8BIT | OSI_MALLOC_CAP_DMA))
-        os_caps = MALLOC_CAP_8BIT | MALLOC_CAP_DMA;
+        iram = false;
     else
-        os_caps = MALLOC_CAP_32BIT;
+        iram = true;
 
-    return _heap_caps_malloc(s, os_caps, file, line);
+    return pvPortMalloc_trace(s, return_addr, (unsigned)-1, iram);
 }
 
-static void *zalloc_wrapper(uint32_t s, uint32_t cap, const char *file, size_t line)
+static void *zalloc_wrapper(uint32_t s, uint32_t cap)
 {
-    uint32_t os_caps;
+    bool iram;
+    void *return_addr = (void *)__builtin_return_address(0);
 
     if (cap & (OSI_MALLOC_CAP_8BIT | OSI_MALLOC_CAP_DMA))
-        os_caps = MALLOC_CAP_8BIT | MALLOC_CAP_DMA;
+        iram = false;
     else
-        os_caps = MALLOC_CAP_32BIT;
+        iram = true;
 
-    return _heap_caps_zalloc(s, os_caps, file, line);
+    char *p = pvPortMalloc_trace(s, return_addr, (unsigned)-1, iram);
+    if (p)
+        memset(p, 0, s);
+
+    return p;
 }
 
-static void *realloc_wrapper(void *ptr, uint32_t s, uint32_t cap, const char *file, size_t line)
+static void *realloc_wrapper(void *ptr, uint32_t s, uint32_t cap)
 {
-    uint32_t os_caps;
+    bool iram;
+    void *return_addr = (void *)__builtin_return_address(0);
 
     if (cap & (OSI_MALLOC_CAP_8BIT | OSI_MALLOC_CAP_DMA))
-        os_caps = MALLOC_CAP_8BIT | MALLOC_CAP_DMA;
+        iram = false;
     else
-        os_caps = MALLOC_CAP_32BIT;
+        iram = true;
 
-    return _heap_caps_realloc(ptr, s, os_caps, file, line);
+    void *p = pvPortMalloc_trace(s, return_addr, (unsigned)-1, iram);
+    if (p && ptr) {
+        memcpy(p, ptr, s);
+        vPortFree_trace(ptr, return_addr, (unsigned)-1);
+    }
+
+    return p;
 }
 
-static void *calloc_wrapper(uint32_t cnt, uint32_t s, uint32_t cap, const char *file, size_t line)
+static void *calloc_wrapper(uint32_t cnt, uint32_t s, uint32_t cap)
 {
-    uint32_t os_caps;
+    bool iram;
+    void *return_addr = (void *)__builtin_return_address(0);
 
     if (cap & (OSI_MALLOC_CAP_8BIT | OSI_MALLOC_CAP_DMA))
-        os_caps = MALLOC_CAP_8BIT | MALLOC_CAP_DMA;
+        iram = false;
     else
-        os_caps = MALLOC_CAP_32BIT;
+        iram = true;
 
-    return _heap_caps_calloc(cnt , s, os_caps, file, line);
+    char *p = pvPortMalloc_trace(cnt * s, return_addr, (unsigned)-1, iram);
+    if (p)
+        memset(p, 0, cnt * s);
+
+    return p;
 }
 
-static void free_wrapper(void *ptr, const char *file, size_t line)
+static void free_wrapper(void *ptr)
 {
-    _heap_caps_free(ptr, file, line);
+    void *return_addr = (void *)__builtin_return_address(0);
+
+    vPortFree_trace(ptr, return_addr, (unsigned)-1);
 }
 
 static void srand_wrapper(uint32_t seed)
@@ -335,15 +367,11 @@ static int32_t rand_wrapper(void)
     return (int32_t)esp_random();
 }
 
-void *osi_task_top_sp(void)
-{
-    extern uint32_t **pxCurrentTCB;
-
-    return pxCurrentTCB[0];
-}
-
-const wifi_osi_funcs_t s_wifi_osi_funcs = {
+wifi_osi_funcs_t s_wifi_osi_funcs = {
     .version = ESP_WIFI_OS_ADAPTER_VERSION,
+
+    .enter_critical = enter_critical_wrapper,
+    .exit_critical = exit_critical_wrapper,
     
     .task_create = task_create_wrapper,
     .task_delete = task_delete_wrapper,

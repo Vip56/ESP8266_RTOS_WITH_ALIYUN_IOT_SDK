@@ -59,8 +59,7 @@ vPortYield:
     
     call0	_xt_int_enter
 	call0	vPortEnterCritical
-    movi	a0, vTaskSwitchContext
-    callx0	a0	
+    call0	vTaskSwitchContext
     call0	vPortExitCritical
     call0	_xt_int_exit
     
@@ -239,8 +238,7 @@ _xt_timer_int:
 
     /* Call the uCOS-II tick handler. */
     #ifdef __XTENSA_CALL0_ABI__         /* OSTimeTick()                       */
-    movi 	a0, xPortSysTickHandle
-    callx0 	a0
+    call0 	xPortSysTickHandle
     #else
     call4   xTaskIncrementTick
     #endif
@@ -281,8 +279,7 @@ _xt_timer_int1:
     #endif
 
     /* Call the uCOS-II tick handler. */
-    movi 	a0, vTaskSwitchContext
-    callx0	a0
+    call0	vTaskSwitchContext
 
     #ifdef __XTENSA_CALL0_ABI__
     /* Restore a2 and a3. */
@@ -444,26 +441,3 @@ _xt_clear_ints:
 
     RET(16)
 
-
-    .section    .text._xt_enter_first_task, "ax"
-    .globl      _xt_enter_first_task
-    .type       _xt_enter_first_task,   @function
-    .align      4
-_xt_enter_first_task:
-    movi    sp, pxCurrentTCB
-    l32i    sp, sp, 0
-    l32i    sp,	sp, 0
-
-    movi    a14, pxCurrentTCB
-    l32i    a14, a14, 0
-    addi    a15, sp, XT_STK_FRMSZ
-    s32i    a15, a14 ,0
-
-    movi    a0, _xt_context_restore
-    callx0  a0
-
-    l32i    a14, sp, XT_STK_A14
-    l32i    a15, sp, XT_STK_A15
-
-    l32i    a0, sp, XT_STK_EXIT
-    ret

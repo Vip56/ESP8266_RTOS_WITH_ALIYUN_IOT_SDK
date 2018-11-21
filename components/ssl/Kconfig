@@ -2,7 +2,7 @@ menu "SSL"
 
 choice SSL_LIBRARY_CHOOSE
     prompt "Choose SSL/TLS library"
-    default SSL_USING_WOLFSSL
+    default SSL_USING_MBEDTLS
     help
         Choose the SSL/TLS library which you want to use.
 
@@ -19,29 +19,12 @@ endchoice
 menu "mbedTLS"
     depends on SSL_USING_MBEDTLS
 
-config MBEDTLS_SSL_OUT_CONTENT_LEN
-    int "TLS maximum OUTPUT message content length"
+config MBEDTLS_SSL_MAX_CONTENT_LEN
+    int "TLS maximum message content length"
     default 4096
     range 512 16384
     help
-        Maximum TLS output message length (in bytes) supported by mbedTLS.
-        
-        You can set a lower value than 16384 bytes in order to save RAM. 
-        This is safe if the other end of the connection supports Maximum
-        Fragment Length Negotiation Extension (max_fragment_length,
-        see RFC6066) or you know for certain that it will never send a
-        message longer than a certain number of bytes.
-
-        If the value is set too low, symptoms are a failed TLS
-        handshake or a return value of MBEDTLS_ERR_SSL_INVALID_RECORD
-        (-0x7200).
-
-config MBEDTLS_SSL_IN_CONTENT_LEN
-    int "TLS maximum INPUT message content length"
-    default 4096
-    range 512 16384
-    help
-        Maximum TLS input message length (in bytes) supported by mbedTLS.
+        Maximum TLS message length (in bytes) supported by mbedTLS.
         
         16384 is the default and this value is required to comply
         fully with TLS standards.
@@ -55,25 +38,6 @@ config MBEDTLS_SSL_IN_CONTENT_LEN
         If the value is set too low, symptoms are a failed TLS
         handshake or a return value of MBEDTLS_ERR_SSL_INVALID_RECORD
         (-0x7200).
-
-choice MBEDTLS_RSA_BITLEN_MIN
-    prompt "RSA minimum bit length"
-    default MBEDTLS_RSA_BITLEN_2048
-    help
-        mbedTLS's minimum bit length is 2048, but some customers's key RSA bits is 1024.
-
-        With the option users can configurate the value to make mbedTLS support 1024 bits RSA key.
-
-config MBEDTLS_RSA_BITLEN_1024
-    bool "1024(not safe)"
-config MBEDTLS_RSA_BITLEN_2048
-    bool "2048"
-endchoice
-
-config MBEDTLS_RSA_BITLEN_MIN
-    int
-    default 1024 if MBEDTLS_RSA_BITLEN_1024
-    default 2048 if MBEDTLS_RSA_BITLEN_2048
 
 config MBEDTLS_DEBUG
    bool "Enable mbedTLS debugging"
@@ -284,13 +248,6 @@ config MBEDTLS_SSL_ALPN
    help
        Disabling this option will save some code size if it is not needed.
 
-config MBEDTLS_CIPHER_MODE_CTR
-    bool "Support CTR mode"
-    depends on MBEDTLS_TLS_ENABLED
-    default n
-    help
-        Enable Counter Block Cipher mode (CTR) for symmetric ciphers. Required for AES CTR
-
 config MBEDTLS_SSL_SESSION_TICKETS
    bool "TLS: Support RFC 5077 SSL session tickets"
    default n
@@ -423,12 +380,6 @@ config MBEDTLS_ECDH_C
     default y
     help
         Enable ECDH. Needed to use ECDHE-xxx TLS ciphersuites.
-
-config MBEDTLS_DHM_C
-    bool "Diffie-Hellman-Merkle(DHM)"
-    default y
-    help
-        Enable the Diffie-Hellman-Merkle module.
 
 config MBEDTLS_ECDSA_C
     bool "Elliptic Curve DSA"

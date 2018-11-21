@@ -23,6 +23,12 @@ extern "C" {
 
 extern wifi_osi_funcs_t s_wifi_osi_funcs;
 
+#define wifi_enter_critical(t) \
+    t = s_wifi_osi_funcs.enter_critical()
+
+#define wifi_exit_critical(t) \
+    s_wifi_osi_funcs.exit_critical(t)
+
 #define wifi_task_create(func, name, depth, param, pri) \
     s_wifi_osi_funcs.task_create(func, name, depth, param, pri)
 
@@ -126,19 +132,19 @@ extern wifi_osi_funcs_t s_wifi_osi_funcs;
     s_wifi_osi_funcs.timer_delete(t, tk)
 
 #define wifi_malloc(s, c) \
-    s_wifi_osi_funcs.malloc(s, c, __ESP_FILE__, __LINE__)
+    s_wifi_osi_funcs.malloc(s, c)
 
 #define wifi_zalloc(s, c) \
-    s_wifi_osi_funcs.zalloc(s, c, __ESP_FILE__, __LINE__)
+    s_wifi_osi_funcs.zalloc(s, c)
 
 #define wifi_calloc(cnt, s, c) \
-    s_wifi_osi_funcs.calloc(cnt, s, c, __ESP_FILE__, __LINE__)
+    s_wifi_osi_funcs.calloc(cnt, s, c)
 
 #define wifi_realloc(ptr, s, c) \
-    s_wifi_osi_funcs.realloc(ptr, s, c, __ESP_FILE__, __LINE__)
+    s_wifi_osi_funcs.realloc(ptr, s, c)
 
 #define wifi_free(p) \
-    s_wifi_osi_funcs.free(p, __ESP_FILE__, __LINE__)
+    s_wifi_osi_funcs.free(p)
 
 #define wifi_get_free_heap_size() \
     s_wifi_osi_funcs.get_free_heap_size()
@@ -148,8 +154,6 @@ extern wifi_osi_funcs_t s_wifi_osi_funcs;
 
 #define wifi_rand() \
     s_wifi_osi_funcs.rand()
-
-void *osi_task_top_sp(void);
 
 #ifdef __cplusplus
 }

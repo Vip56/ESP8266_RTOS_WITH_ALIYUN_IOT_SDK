@@ -16,12 +16,9 @@
 #include "esp_libc.h"
 #include "esp_system.h"
 #include "esp_wifi.h"
-#include "internal/esp_wifi_internal.h"
 #include "esp_socket.h"
 #include "net/sockio.h"
 #include "phy.h"
-
-const size_t _g_esp_wifi_ppt_task_stk_size = CONFIG_WIFI_PPT_TASKSTACK_SIZE;
 
 esp_err_t esp_wifi_init_internal(const wifi_init_config_t *config);
 
@@ -62,13 +59,8 @@ size_t __attribute__((weak)) esp_wifi_scan_get_ap_num_max(void)
 
 bool IRAM_ATTR esp_wifi_try_rate_from_high(void) {
 #if CONFIG_WIFI_TX_RATE_SEQUENCE_FROM_HIGH
-    int8_t rssi;
-    rssi = esp_wifi_get_ap_rssi();
-    wifi_mode_t mode;
-    esp_wifi_get_mode( &mode );
-    if (rssi < -26 && mode == WIFI_MODE_STA) {
-        return true;
-    }
-#endif
+    return true;
+#else
     return false;
+#endif
 }

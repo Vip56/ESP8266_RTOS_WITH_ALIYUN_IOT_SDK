@@ -11,13 +11,8 @@ register_component()
 
 target_link_libraries(${COMPONENT_NAME} "-L ${CMAKE_CURRENT_SOURCE_DIR}/lib")
 if(NOT CONFIG_NO_BLOBS)
-<<<<<<< HEAD
     target_link_libraries(${COMPONENT_NAME} crypto gcc hal core
                                             net80211 phy pp smartconfig ssc wpa)
-=======
-    target_link_libraries(${COMPONENT_NAME} gcc hal core
-                                            net80211 phy pp smartconfig ssc wpa espnow wps)
->>>>>>> 57c6215f9b58fd94422de52929c39b67a1f5a5a1
 endif()
 
 target_link_libraries(${COMPONENT_NAME} "-u call_user_start")
@@ -59,4 +54,4 @@ target_compile_options(${COMPONENT_NAME} PUBLIC -Wno-error=char-subscripts -Wno-
                                                 -Wno-error=unused-value -Wno-error=address -Wno-error=return-type -Wno-error=format-extra-args
                                                 -Wno-error=format-zero-length -Wno-error=unused-label -Wno-error=sizeof-pointer-memaccess)
 
-target_compile_options(${COMPONENT_NAME} PUBLIC -DICACHE_FLASH)
+target_compile_options(${COMPONENT_NAME} PUBLIC -DMEMLEAK_DEBUG -DICACHE_FLASH)

@@ -22,13 +22,6 @@
 #include "lwip/netif.h"
 #include "lwip/tcpip.h"
 #include "lwip/dhcp.h"
-#if LWIP_IPV4 && LWIP_AUTOIP
-#include "lwip/autoip.h"
-#include "lwip/prot/autoip.h"
-#endif
-#include "lwip/ip_addr.h"
-#include "lwip/ip6_addr.h"
-#include "lwip/nd6.h"
 #include "lwip/dns.h"
 #include "lwip/errno.h"
 #include "lwip/timeouts.h"
@@ -62,7 +55,7 @@ struct tcpip_adapter_api_call_data {
 static struct netif *esp_netif[TCPIP_ADAPTER_IF_MAX];
 static tcpip_adapter_ip_info_t esp_ip[TCPIP_ADAPTER_IF_MAX];
 static tcpip_adapter_ip_info_t esp_ip_old[TCPIP_ADAPTER_IF_MAX];
-#if TCPIP_ADAPTER_IPV6
+#if 0
 /*TODO need add ip6*/
 static tcpip_adapter_ip6_info_t esp_ip6[TCPIP_ADAPTER_IF_MAX];
 #endif
@@ -193,24 +186,10 @@ void tcpip_adapter_init(void)
 static void tcpip_adapter_dhcpc_done(void *arg)
 {
     struct dhcp *clientdhcp = netif_dhcp_data(esp_netif[TCPIP_ADAPTER_IF_STA]) ;
-    struct netif *netif = esp_netif[TCPIP_ADAPTER_IF_STA];
-
-    if (!netif) {
-        ESP_LOGD(TAG, "null netif=%p", netif);
-        return;
-    }
-
-#if LWIP_IPV4 && LWIP_AUTOIP
-    struct autoip *autoip = netif_autoip_data(netif);
-#endif
 
     wifi_timer_stop(dhcp_check_timer, 0);
     if (netif_is_up(esp_netif[TCPIP_ADAPTER_IF_STA])) {
-        if (clientdhcp->state == DHCP_STATE_BOUND
-#if LWIP_IPV4 && LWIP_AUTOIP
-            || (autoip && autoip->state == AUTOIP_STATE_ANNOUNCING)
-#endif
-        ) {
+        if (clientdhcp->state == DHCP_STATE_BOUND) {
             /*send event here*/
             tcpip_adapter_dhcpc_cb(esp_netif[TCPIP_ADAPTER_IF_STA]);
             ESP_LOGD(TAG,"ip:" IPSTR ",mask:" IPSTR ",gw:" IPSTR "\n", IP2STR(ip_2_ip4(&(esp_netif[0]->ip_addr))),
@@ -262,7 +241,7 @@ esp_err_t tcpip_adapter_start(tcpip_adapter_if_t tcpip_if, uint8_t *mac, tcpip_a
         }
 
         if (esp_netif[tcpip_if] == NULL) {
-            ESP_LOGE(TAG, "TCPIP adapter has no memory\n");
+            ESP_LOGE(TAG, "TCPIP adapter has no menory\n");
             return ESP_ERR_NO_MEM;
         }
         memcpy(esp_netif[tcpip_if]->hwaddr, mac, NETIF_MAX_HWADDR_LEN);
@@ -582,7 +561,7 @@ esp_err_t tcpip_adapter_set_ip_info(tcpip_adapter_if_t tcpip_if, tcpip_adapter_i
     return ESP_OK;
 }
 
-#if TCPIP_ADAPTER_IPV6
+#if 0
 static void tcpip_adapter_nd6_cb(struct netif *p_netif, uint8_t ip_idex)
 {
     tcpip_adapter_ip6_info_t *ip6_info;
@@ -617,7 +596,6 @@ static void tcpip_adapter_nd6_cb(struct netif *p_netif, uint8_t ip_idex)
 }
 #endif
 
-#if TCPIP_ADAPTER_IPV6
 esp_err_t tcpip_adapter_create_ip6_linklocal(tcpip_adapter_if_t tcpip_if)
 {
     struct netif *p_netif;
@@ -630,7 +608,7 @@ esp_err_t tcpip_adapter_create_ip6_linklocal(tcpip_adapter_if_t tcpip_if)
     if (p_netif != NULL && netif_is_up(p_netif)) {
         netif_create_ip6_linklocal_address(p_netif, 1);
         /*TODO need add ipv6 address cb*/
-        nd6_set_cb(p_netif, tcpip_adapter_nd6_cb);
+        //nd6_set_cb(p_netif, tcpip_adapter_nd6_cb);
 
         return ESP_OK;
     } else {
@@ -654,7 +632,6 @@ esp_err_t tcpip_adapter_get_ip6_linklocal(tcpip_adapter_if_t tcpip_if, ip6_addr_
     }
     return ESP_OK;
 }
-#endif
 
 esp_err_t tcpip_adapter_dhcps_option(tcpip_adapter_option_mode_t opt_op, tcpip_adapter_option_id_t opt_id, void *opt_val, uint32_t opt_len)
 {
@@ -789,14 +766,14 @@ esp_err_t tcpip_adapter_set_dns_info(tcpip_adapter_if_t tcpip_if, tcpip_adapter_
         ESP_LOGD(TAG, "set dns invalid type=%d", type);
         return ESP_ERR_TCPIP_ADAPTER_INVALID_PARAMS;
     }
-
-    if (ip4_addr_isany_val(*ip_2_ip4(&(dns->ip)))) {
+    
+    if (ip4_addr_isany_val(dns->ip.u_addr.ip4)) {
         ESP_LOGD(TAG, "set dns invalid dns");
         return ESP_ERR_TCPIP_ADAPTER_INVALID_PARAMS;
     }
 
-    ESP_LOGD(TAG, "set dns if=%d type=%d dns=%x", tcpip_if, type, ip_2_ip4(&(dns->ip))->addr);
-    IP_SET_TYPE_VAL(dns->ip, IPADDR_TYPE_V4);
+    ESP_LOGD(TAG, "set dns if=%d type=%d dns=%x", tcpip_if, type, dns->ip.u_addr.ip4.addr);
+    dns->ip.type = IPADDR_TYPE_V4;
 
     if (tcpip_if == TCPIP_ADAPTER_IF_STA || tcpip_if == TCPIP_ADAPTER_IF_ETH) {
         dns_setserver(type, &(dns->ip));
@@ -835,7 +812,7 @@ esp_err_t tcpip_adapter_get_dns_info(tcpip_adapter_if_t tcpip_if, tcpip_adapter_
         ns = dns_getserver(type);
         dns->ip = *ns;
     } else {
-        *ip_2_ip4(&(dns->ip)) = dhcps_dns_getserver();
+        dns->ip.u_addr.ip4 = dhcps_dns_getserver();
     }
 
     return ESP_OK;
@@ -1226,15 +1203,6 @@ struct netif* ip4_route_src_hook(const ip4_addr_t* dest, const ip4_addr_t* src)
         }
     }
     return netif;
-}
-
-bool tcpip_adapter_is_netif_up(tcpip_adapter_if_t tcpip_if)
-{
-    if (esp_netif[tcpip_if] != NULL && netif_is_up(esp_netif[tcpip_if])) {
-        return true;
-    } else {
-        return false;
-    }
 }
 
 #endif /* CONFIG_TCPIP_LWIP */

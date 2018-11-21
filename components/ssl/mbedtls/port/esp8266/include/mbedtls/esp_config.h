@@ -480,10 +480,7 @@
  *
  * Enable Counter Block Cipher mode (CTR) for symmetric ciphers.
  */
-
-#ifdef CONFIG_MBEDTLS_CIPHER_MODE_CTR
-#define MBEDTLS_CIPHER_MODE_CTR
-#endif
+//#define MBEDTLS_CIPHER_MODE_CTR
 
 /**
  * \def MBEDTLS_CIPHER_NULL_CIPHER
@@ -2027,9 +2024,7 @@
  *             See dhm.h for more details.
  *
  */
-#ifdef CONFIG_MBEDTLS_DHM_C
-#define MBEDTLS_DHM_C
-#endif
+//#define MBEDTLS_DHM_C
 
 /**
  * \def MBEDTLS_ECDH_C
@@ -2891,9 +2886,7 @@
 //#define MBEDTLS_SSL_CACHE_DEFAULT_MAX_ENTRIES      50 /**< Maximum entries in cache */
 
 /* SSL options */
-//#define MBEDTLS_SSL_MAX_CONTENT_LEN             CONFIG_MBEDTLS_SSL_MAX_CONTENT_LEN /**< Maxium fragment length in bytes, determines the size of each of the two internal I/O buffers */
-#define MBEDTLS_SSL_IN_CONTENT_LEN              CONFIG_MBEDTLS_SSL_IN_CONTENT_LEN  /**<  Determines the size of the internal Input buffer in bytes */
-#define MBEDTLS_SSL_OUT_CONTENT_LEN             CONFIG_MBEDTLS_SSL_OUT_CONTENT_LEN /**<  Determines the size of the internal Output buffer in bytes */
+#define MBEDTLS_SSL_MAX_CONTENT_LEN             CONFIG_MBEDTLS_SSL_MAX_CONTENT_LEN /**< Maxium fragment length in bytes, determines the size of each of the two internal I/O buffers */
 //#define MBEDTLS_SSL_DEFAULT_TICKET_LIFETIME     86400 /**< Lifetime of session tickets (if enabled) */
 //#define MBEDTLS_PSK_MAX_LEN               32 /**< Max size of TLS pre-shared keys, in bytes (default 256 bits) */
 //#define MBEDTLS_SSL_COOKIE_TIMEOUT        60 /**< Default expiration delay of DTLS cookies, in seconds if HAVE_TIME, or in number of cookies issued */
@@ -2968,14 +2961,6 @@
 #elif defined(MBEDTLS_USER_CONFIG_FILE)
 #include MBEDTLS_USER_CONFIG_FILE
 #endif
-
-#ifdef CONFIG_MBEDTLS_RSA_BITLEN_MIN
-#define MBEDTLS_RSA_BITLEN_MIN CONFIG_MBEDTLS_RSA_BITLEN_MIN
-#else
-#define MBEDTLS_RSA_BITLEN_MIN 2048
-#endif
-
-#define MBEDTLS_DEBUGF(_fmt, ...)   printf(_fmt "\r\n", ##__VA_ARGS__)
 
 #include "mbedtls/check_config.h"
 

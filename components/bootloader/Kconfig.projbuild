@@ -1,15 +1,4 @@
 menu "Bootloader config"
-
-config BOOTLOADER_INIT_SPI_FLASH
-    bool "Bootloader init SPI flash"
-    default y
-    help
-        Enable this option, software will initialize SPI flash clock and I/O mode at bootloader instead of at APP.
-        So it will speed up system starting and reduce the time cost at loading firmware.
-
-        If your system bootloader is based on v3.0, the option must not be enable, because the v3.0 bootloader don't support
-        this function.
-
 choice LOG_BOOTLOADER_LEVEL
    bool "Bootloader log verbosity"
    default LOG_BOOTLOADER_LEVEL_INFO
@@ -38,18 +27,6 @@ config LOG_BOOTLOADER_LEVEL
     default 3 if LOG_BOOTLOADER_LEVEL_INFO
     default 4 if LOG_BOOTLOADER_LEVEL_DEBUG
     default 5 if LOG_BOOTLOADER_LEVEL_VERBOSE
-
-config BOOTLOADER_CHECK_APP_SUM
-    bool "Check APP binary data sum before loading"
-    default y
-    help
-        If enable this option, bootloader will check the sum of app binary data before load it to run.
-
-config BOOTLOADER_CHECK_APP_HASH
-    bool "Check APP binary data hash before loading"
-    default n
-    help
-        If enable this option, bootloader will check the hash of app binary data before load it to run.
 
 config BOOTLOADER_SPI_WP_PIN
     int "SPI Flash WP Pin when customising pins via efuse (read help)"

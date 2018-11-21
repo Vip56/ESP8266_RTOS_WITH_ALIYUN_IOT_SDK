@@ -26,22 +26,17 @@
 #include "esp_image_format.h"
 #include "esp_phy_init.h"
 #include "esp_wifi_osi.h"
-#include "esp_heap_caps_init.h"
-#include "esp_task_wdt.h"
 #include "internal/esp_wifi_internal.h"
 
 #define FLASH_MAP_ADDR 0x40200000
-#define FLASH_MAP_SIZE 0x00100000
 
-extern void chip_boot(void);
+extern void chip_boot(size_t start_addr);
 extern int rtc_init(void);
 extern int mac_init(void);
 extern int base_gpio_init(void);
 extern int watchdog_init(void);
 extern int wifi_timer_init(void);
 extern int wifi_nvs_init(void);
-extern esp_err_t esp_pthread_init(void);
-extern void phy_get_bb_evm(void);
 
 static void user_init_entry(void *param)
 {
@@ -56,25 +51,17 @@ static void user_init_entry(void *param)
     for (func = &__init_array_start; func < &__init_array_end; func++)
         func[0]();
 
-    phy_get_bb_evm();
-
     assert(nvs_flash_init() == 0);
     assert(wifi_nvs_init() == 0);
     assert(rtc_init() == 0);
     assert(mac_init() == 0);
     assert(base_gpio_init() == 0);
     esp_phy_load_cal_and_init(0);
+    assert(watchdog_init() == 0);
     assert(wifi_timer_init() == 0);
 
+    tcpip_adapter_init();
     esp_wifi_set_rx_pbuf_mem_type(WIFI_RX_PBUF_DRAM);
-
-#ifdef CONFIG_TASK_WDT
-    esp_task_wdt_init();
-#endif
-
-#ifdef CONFIG_ENABLE_PTHREAD
-    assert(esp_pthread_init() == 0);
-#endif
 
     app_main();
 
@@ -88,7 +75,7 @@ void call_user_start(size_t start_addr)
 
     extern int _bss_start, _bss_end;
 
-    esp_image_header_t *head = (esp_image_header_t *)(FLASH_MAP_ADDR + (start_addr & (FLASH_MAP_SIZE - 1)));
+    esp_image_header_t *head = (esp_image_header_t *)(FLASH_MAP_ADDR + CONFIG_PARTITION_TABLE_CUSTOM_APP_BIN_OFFSET);
     esp_image_segment_header_t *segment = (esp_image_segment_header_t *)((uintptr_t)head + sizeof(esp_image_header_t));
 
     for (i = 0; i < 3; i++) {
@@ -111,9 +98,7 @@ void call_user_start(size_t start_addr)
         "wsr        a0, vecbase\n"
         : : :"memory");
 
-#ifndef CONFIG_BOOTLOADER_INIT_SPI_FLASH
-    chip_boot();
-#endif
+    chip_boot(start_addr);
 
     /* clear bss data */
     for (p = &_bss_start; p < &_bss_end; p++)
@@ -122,13 +107,12 @@ void call_user_start(size_t start_addr)
     __asm__ __volatile__(
         "rsil       a2, 2\n"
         "movi       a1, _chip_interrupt_tmp\n"
-        : : :"memory");
-
-    heap_caps_init();
+        "movi       a2, 0xffffff00\n"
+        "and        a1, a1, a2\n");
 
     wifi_os_init();
 
-    assert(wifi_task_create(user_init_entry, "uiT", CONFIG_MAIN_TASK_STACK_SIZE, NULL, wifi_task_get_max_priority()) != NULL);
+    assert(wifi_task_create(user_init_entry, "uiT", 2048, NULL, wifi_task_get_max_priority()) != NULL);
 
     wifi_os_start();
 }

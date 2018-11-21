@@ -37,7 +37,7 @@ config SOC_FULL_ICACHE
 
 choice CONSOLE_UART_NUM
     prompt "UART peripheral to use for console output (0-1)"
-    default CONSOLE_UART_CUSTOM_NUM_1
+    default CONSOLE_UART_CUSTOM_NUM_0
     help
         Configrate output console UART for "ets_printf", "printf", "ESP_LOGX" and so on.
 
@@ -120,3 +120,4 @@ config ESP_PHY_INIT_DATA_IN_PARTITION
         If unsure, choose 'n'.
 
 endmenu  # PHY
+

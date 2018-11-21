@@ -77,8 +77,6 @@ struct udp_pcb;
 typedef void (*udp_recv_fn)(void *arg, struct udp_pcb *pcb, struct pbuf *p,
     const ip_addr_t *addr, u16_t port);
 
-typedef int (*udp_cb_fn)(void *arg, int free);
-
 /** the UDP protocol control block */
 struct udp_pcb {
 /** Common members of all PCB types */
@@ -108,15 +106,6 @@ struct udp_pcb {
   udp_recv_fn recv;
   /** user-supplied argument for the recv callback */
   void *recv_arg;
-
-#if ESP_UDP
-  /* UDP PCB will be clear to "0" when call udp_new() */
-
-  /* UDP sync callback function mainly used for resend or active up level task */
-  udp_cb_fn cb;
-  /* UDP sync callback function private data */
-  void *arg;
-#endif
 };
 /* udp_pcbs export for external reference (e.g. SNMP agent) */
 extern struct udp_pcb *udp_pcbs;
@@ -174,14 +163,6 @@ void             udp_init       (void);
 #define udp_get_multicast_netif_addr(pcb)          ip_2_ip4(&(pcb)->multicast_ip)
 #define udp_set_multicast_ttl(pcb, value)      do { (pcb)->mcast_ttl = value; } while(0)
 #define udp_get_multicast_ttl(pcb)                 ((pcb)->mcast_ttl)
-
-#if LWIP_IPV6_MLD
-#if ESP_LWIP_IPV6_MLD
-#define udp_set_multicast_netif_ip6addr(pcb, ip6addr) ip_addr_copy_from_ip6((pcb)->multicast_ip, *(ip6addr))
-#define udp_get_multicast_netif_ip6addr(pcb)          ip_2_ip6(&(pcb)->multicast_ip)
-#endif /* ESP_LWIP_IPV6_MLD */
-#endif /* LWIP_IPV6_MLD */
-
 #endif /* LWIP_MULTICAST_TX_OPTIONS */
 
 #if UDP_DEBUG

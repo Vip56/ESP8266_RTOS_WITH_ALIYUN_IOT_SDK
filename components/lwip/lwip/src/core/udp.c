@@ -189,9 +189,6 @@ udp_input(struct pbuf *p, struct netif *inp)
   struct udp_pcb *uncon_pcb;
   u16_t src, dest;
   u8_t broadcast;
-#if ESP_LWIP
-  u8_t multicast;
-#endif
   u8_t for_us = 0;
 
   LWIP_UNUSED_ARG(inp);
@@ -216,11 +213,6 @@ udp_input(struct pbuf *p, struct netif *inp)
 
   /* is broadcast packet ? */
   broadcast = ip_addr_isbroadcast(ip_current_dest_addr(), ip_current_netif());
-
-#if ESP_LWIP
-  /* is multicast packet ? */
-  multicast = ip_addr_ismulticast(ip_current_dest_addr());
-#endif
 
   LWIP_DEBUGF(UDP_DEBUG, ("udp_input: received datagram of length %"U16_F"\n", p->tot_len));
 
@@ -254,11 +246,7 @@ udp_input(struct pbuf *p, struct netif *inp)
 
     /* compare PCB local addr+port to UDP destination addr+port */
     if ((pcb->local_port == dest) &&
-        (udp_input_local_match(pcb, inp, broadcast) != 0
-#if ESP_LWIP
-         || multicast
-#endif
-        )) {
+        (udp_input_local_match(pcb, inp, broadcast) != 0)) {
       if (((pcb->flags & UDP_FLAGS_CONNECTED) == 0) &&
           ((uncon_pcb == NULL)
 #if SO_REUSE
@@ -273,11 +261,7 @@ udp_input(struct pbuf *p, struct netif *inp)
       /* compare PCB remote addr+port to UDP source addr+port */
       if ((pcb->remote_port == src) &&
           (ip_addr_isany_val(pcb->remote_ip) ||
-          ip_addr_cmp(&pcb->remote_ip, ip_current_src_addr()) 
-#if ESP_LWIP
-          || multicast
-#endif
-          )) {
+          ip_addr_cmp(&pcb->remote_ip, ip_current_src_addr()))) {
         /* the first fully matching PCB */
         if (prev != NULL) {
           /* move the pcb to the front of udp_pcbs so that is
@@ -532,39 +516,11 @@ udp_sendto_chksum(struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *dst_ip,
   struct netif *netif;
   const ip_addr_t *dst_ip_route = dst_ip;
 
-  /**
-   * UDP max payload = MTU(1500 now) - IP head(20) - UDP head(8) = 1472
-   *
-   * We test that LWIP send 1473 bytes data, linux can cacth these but windows can't.
-   *
-   * If enable IP_FRAG option, these data should be fragmented at IP layer..
-   */
-#if ESP_LWIP && !IP_FRAG
-  if (p && p->tot_len > 1472) {
-    return ERR_VAL;
-  }
-#endif
-
   if ((pcb == NULL) || (dst_ip == NULL) || !IP_ADDR_PCB_VERSION_MATCH(pcb, dst_ip)) {
     return ERR_VAL;
   }
 
   LWIP_DEBUGF(UDP_DEBUG | LWIP_DBG_TRACE, ("udp_send\n"));
-
-#if LWIP_IPV4 && LWIP_IPV6
-#if ESP_LWIP_IPV6
-  /* Unwrap IPV4-mapped IPV6 addresses and convert to native IPV4 here */
-  if (IP_IS_V4MAPPEDV6(dst_ip)) {
-    ip_addr_t dest_ipv4;
-    unmap_ipv4_mapped_ipv6(ip_2_ip4(&dest_ipv4), ip_2_ip6(dst_ip));
-#if LWIP_CHECKSUM_ON_COPY && CHECKSUM_GEN_UP
-    return udp_sendto_chksum(pcb, p, &dest_ipv4, dst_port, have_chksum, chksum);
-#else
-    return udp_sendto(pcb, p, &dest_ipv4, dst_port);
-#endif /* LWIP_CHECKSUM_ON_COPY && CHECKSUM_GEN_UP */
-  }
-#endif /* ESP_LWIP_IPV6 */
-#endif /* LWIP_IPV4 && LWIP_IPV6 */
 
 #if LWIP_IPV6 || (LWIP_IPV4 && LWIP_MULTICAST_TX_OPTIONS)
   if (ip_addr_ismulticast(dst_ip_route)) {
@@ -880,10 +836,6 @@ udp_sendto_if_src_chksum(struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *d
   ttl = pcb->ttl;
 #endif /* LWIP_MULTICAST_TX_OPTIONS */
 
-#if ESP_UDP
-  udp_sync_cache_udp(pcb);
-#endif
-
   LWIP_DEBUGF(UDP_DEBUG, ("udp_send: UDP checksum 0x%04"X16_F"\n", udphdr->chksum));
   LWIP_DEBUGF(UDP_DEBUG, ("udp_send: ip_output_if (,,,,0x%02"X16_F",)\n", (u16_t)ip_proto));
   /* output to IP */
@@ -893,10 +845,6 @@ udp_sendto_if_src_chksum(struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *d
 
   /* @todo: must this be increased even if error occurred? */
   MIB2_STATS_INC(mib2.udpoutdatagrams);
-
-#if ESP_UDP
-  udp_sync_clear_udp();
-#endif
 
   /* did we chain a separate header pbuf earlier? */
   if (q != p) {
@@ -1139,11 +1087,6 @@ udp_remove(struct udp_pcb *pcb)
       }
     }
   }
-
-#if ESP_UDP
-  udp_sync_close_udp(pcb);
-#endif
-
   memp_free(MEMP_UDP_PCB, pcb);
 }
 

@@ -37,6 +37,8 @@ extern "C" {
 
 typedef struct {
     int32_t version;
+    uint32_t (*enter_critical)(void);
+    void (*exit_critical)(uint32_t tmp);
 
     void *(*task_create)(void *task_func, const char *name, uint32_t stack_depth, void *param, uint32_t prio);
     void (*task_delete)(void *task_handle);
@@ -80,11 +82,11 @@ typedef struct {
     bool (*timer_stop)(void *timer, uint32_t ticks);
     bool (*timer_delete)(void *timer, uint32_t ticks);
 
-    void *(*malloc)(uint32_t size, uint32_t cap, const char *file, size_t line);
-    void *(*zalloc)(uint32_t size, uint32_t cap, const char *file, size_t line);
-    void *(*realloc)(void *ptr, uint32_t size, uint32_t cap, const char *file, size_t line);
-    void *(*calloc)(uint32_t cnt, uint32_t size, uint32_t cap, const char *file, size_t line);
-    void (*free)(void *p, const char *file, size_t line);
+    void *(*malloc)(uint32_t size, uint32_t cap);
+    void *(*zalloc)(uint32_t size, uint32_t cap);
+    void *(*realloc)(void *ptr, uint32_t size, uint32_t cap);
+    void *(*calloc)(uint32_t cnt, uint32_t size, uint32_t cap);
+    void (*free)(void *p);
     uint32_t (*get_free_heap_size)(void);
 
     void (*srand)(uint32_t seed);
