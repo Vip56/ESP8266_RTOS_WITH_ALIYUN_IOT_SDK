@@ -28,27 +28,6 @@ config NEWLIB_STDOUT_LINE_ENDING_CR
     bool "CR"
 endchoice
 
-choice ESP_FILENAME_MACRO
-    prompt "File name macro text"
-    default ESP_FILENAME_MACRO_NO_PATH
-    help
-        This option allows configuring the macro __ESP_FILE__ text.
-        Three options are possible:
-
-        no PATH: strip the path of macro __FILE__, for example: __FILE__="a/b/c/d.h", then __ESP_FILE__="d.h"
-
-        raw: same as macro __FILE__
-
-        null: text is string "null"
-
-config ESP_FILENAME_MACRO_NO_PATH
-    bool "no PATH"
-config ESP_FILENAME_MACRO_RAW
-    bool "raw"
-config ESP_FILENAME_MACRO_NULL
-    bool "null"
-endchoice
-
 config SOC_FULL_ICACHE
     bool "Enable full cache mode"
     default n
@@ -56,14 +35,9 @@ config SOC_FULL_ICACHE
         Enable this option, full 32 KB iram instead of 16 KB iram will be used as icache, so the heap use can use
         may reduce a lot.
 
-config SOC_IRAM_SIZE
-    hex
-    default 0x8000 if SOC_FULL_ICACHE
-    default 0xC000 if !SOC_FULL_ICACHE
-
 choice CONSOLE_UART_NUM
     prompt "UART peripheral to use for console output (0-1)"
-    default CONSOLE_UART_CUSTOM_NUM_1
+    default CONSOLE_UART_CUSTOM_NUM_0
     help
         Configrate output console UART for "ets_printf", "printf", "ESP_LOGX" and so on.
 
@@ -89,74 +63,6 @@ config CONSOLE_UART_SWAP_IO
     help
         Enable this option, UART0's I/O pins are swaped: TXD <-> RTS, RTX <-> CTS.
 
-config MAIN_TASK_STACK_SIZE
-    int "Main task stack size"
-    default 3584
-    help
-        Configure the "main task" stack size. This is the stack of the task
-        which calls app_main(). If app_main() returns then this task is deleted
-        and its stack memory is freed.
-
-config TASK_WDT
-    bool "Initialize Task Watchdog Timer on startup"
-    default y
-    help
-        The Task Watchdog Timer can be used to make sure individual tasks are still
-        running. Enabling this option will cause the Task Watchdog Timer to be
-        initialized automatically at startup. The Task Watchdog timer can be 
-        initialized after startup as well.
-
-config TASK_WDT_PANIC
-    bool "Invoke panic handler on Task Watchdog timeout"
-    default y
-    help
-        If this option is enabled, the Task Watchdog Timer will be configured to
-        trigger the panic handler when it times out. And it may cost some time.
-
-choice TASK_WDT_TIMEOUT_S
-    prompt "Task Watchdog timeout period (seconds)"
-    default TASK_WDT_TIMEOUT_15N
-    help
-        Timeout period configuration for the Task Watchdog Timer in seconds.
-        This is also configurable at run time.
-
-config TASK_WDT_TIMEOUT_13N
-    bool "6.5536s"
-config TASK_WDT_TIMEOUT_14N
-    bool "13.1072s"
-config TASK_WDT_TIMEOUT_15N
-    bool "26.2144s"
-endchoice
-
-config TASK_WDT_TIMEOUT_S
-    int
-    default 13 if TASK_WDT_TIMEOUT_13N
-    default 14 if TASK_WDT_TIMEOUT_14N
-    default 15 if TASK_WDT_TIMEOUT_15N
-
-config WIFI_PPT_TASKSTACK_SIZE
-    int "ppT task stack size"
-    default 2048
-    range 2048 8192
-    help
-        Configure the "ppT task" stack size. This is the stack of the task
-        which calls promiscuous callback function. So if user's function is
-        complex, the stack must be set larger.
-
-config EVENT_LOOP_STACK_SIZE
-    int "Event loop stack size"
-    default 2048
-    help
-        Configure the Event loop task stack size per application.
-
-config ESP8266_CORE_GLOBAL_DATA_LINK_IRAM
-    bool "Link libcore.a internal global data to IRAM"
-    default y
-    depends on !LWIP_HIGH_THROUGHPUT
-    depends on !SOC_FULL_ICACHE
-    help
-        Link libcore.a internal global data(.bss .data COMMON) from DRAM to IRAM.
-
 endmenu
 
 menu WIFI
@@ -173,7 +79,7 @@ config SCAN_AP_MAX
 
 config WIFI_TX_RATE_SEQUENCE_FROM_HIGH
     bool "Set wifi tx rate from 54M to 1M"
-    default y
+    default n
     help
         If this option is enabled, Wifi will try to send packets first from high rate(54M). If it fails, it will 
         try at low rate until the transmission is successful.
@@ -214,4 +120,3 @@ config ESP_PHY_INIT_DATA_IN_PARTITION
         If unsure, choose 'n'.
 
 endmenu  # PHY
-
