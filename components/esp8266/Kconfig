@@ -56,14 +56,11 @@ config SOC_FULL_ICACHE
         Enable this option, full 32 KB iram instead of 16 KB iram will be used as icache, so the heap use can use
         may reduce a lot.
 
-<<<<<<< HEAD
-=======
 config SOC_IRAM_SIZE
     hex
     default 0x8000 if SOC_FULL_ICACHE
     default 0xC000 if !SOC_FULL_ICACHE
 
->>>>>>> 57c6215f9b58fd94422de52929c39b67a1f5a5a1
 choice CONSOLE_UART_NUM
     prompt "UART peripheral to use for console output (0-1)"
     default CONSOLE_UART_CUSTOM_NUM_1
