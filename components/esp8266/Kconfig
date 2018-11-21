@@ -89,8 +89,6 @@ config CONSOLE_UART_SWAP_IO
     help
         Enable this option, UART0's I/O pins are swaped: TXD <-> RTS, RTX <-> CTS.
 
-<<<<<<< HEAD
-=======
 config MAIN_TASK_STACK_SIZE
     int "Main task stack size"
     default 3584
@@ -159,7 +157,6 @@ config ESP8266_CORE_GLOBAL_DATA_LINK_IRAM
     help
         Link libcore.a internal global data(.bss .data COMMON) from DRAM to IRAM.
 
->>>>>>> 57c6215f9b58fd94422de52929c39b67a1f5a5a1
 endmenu
 
 menu WIFI
