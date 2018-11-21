@@ -33,6 +33,7 @@
 #include "iot_import.h"
 #include "iot_export.h"
 #include "esp_smartconfig.h"
+#include "uart.h"
 
 /*
  * 如果需要使用smartConfig请取消以下两行的注释
