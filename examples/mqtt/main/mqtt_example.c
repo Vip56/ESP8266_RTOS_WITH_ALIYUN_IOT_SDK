@@ -34,12 +34,33 @@
 #include "iot_export.h"
 #include "esp_smartconfig.h"
 
+/*
+ * 如果需要使用smartConfig请取消以下两行的注释
+ */
+/*
+#ifndef USE_SMARTCONFIG
+#define USE_SMARTCONFIG
+#endif
+*/
+
+/*
+ * 如果需要使用UART0，还需要查看调试窗口的可以将调试接口转换为UART1，那么仅需要
+ * 去掉以下注释即可
+ */
+
+#ifndef USE_UART_ONE
+#define USE_UART_ONE
+#endif
+
+
 #define EXAMPLE_WIFI_SSID CONFIG_WIFI_SSID
 #define EXAMPLE_WIFI_PASS CONFIG_WIFI_PASSWORD
 
 #define PRODUCT_KEY             CONFIG_PRODUCT_KEY
 #define DEVICE_NAME             CONFIG_DEVICE_NAME
 #define DEVICE_SECRET           CONFIG_DEVICE_SECRET
+
+#define EX_UART_NUM UART_NUM_1
 
 static EventGroupHandle_t wifi_event_group;
 static const int CONNECTED_BIT = BIT0;
@@ -72,6 +93,7 @@ void mqtt_task(void *pvParameter);
         HAL_Printf("%s", "\r\n"); \
     } while(0)
 
+#ifdef USE_SMARTCONFIG // # 使用 smartConfig
 static void sc_callback(smartconfig_status_t status, void *pdata)
 {
 	switch(status) {
@@ -127,6 +149,7 @@ void smartconfig_task(void * parm)
 		}
 	}
 }
+#endif // # 使用 smartConfig
 
 void event_handle(void *pcontext, void *pclient, iotx_mqtt_event_msg_pt msg)
 {
@@ -283,10 +306,6 @@ int mqtt_client(void)
 
     IOT_MQTT_Yield(pclient, 200);
 
-    IOT_MQTT_Unsubscribe(pclient, TOPIC_DATA);
-
-    IOT_MQTT_Yield(pclient, 200);
-
     IOT_MQTT_Destroy(&pclient);
 
 do_exit:
@@ -297,7 +316,7 @@ void mqtt_task(void *pvParameter)
 {
     ESP_LOGI(TAG, "MQTT task started...");
 
-    while (1) { // reconnect to tls
+    while (1) {
     	xEventGroupWaitBits(wifi_event_group, CONNECTED_BIT, false, true, portMAX_DELAY);
 
         IOT_OpenLog("mqtt");
@@ -322,17 +341,16 @@ static esp_err_t event_handler(void *ctx, system_event_t *event)
 {
     switch (event->event_id) {
     case SYSTEM_EVENT_STA_START:
-    	/* 当需要关闭smartConfig时候，请将 xTaskCreate 代码注释，并将
-    	   下行代码的注释去掉即可 */
+#ifdef USE_SMARTCONFIG
+    	xTaskCreate(smartconfig_task, "smartconfig_task", 4096, NULL, 3, NULL);
+#else
     	esp_wifi_connect();
-    	//xTaskCreate(smartconfig_task, "smartconfig_task", 4096, NULL, 3, NULL);
+#endif
         break;
     case SYSTEM_EVENT_STA_GOT_IP:
         xEventGroupSetBits(wifi_event_group, CONNECTED_BIT);
         break;
     case SYSTEM_EVENT_STA_DISCONNECTED:
-        /* This is a workaround as ESP32 WiFi libs don't currently
-           auto-reassociate. */
         esp_wifi_connect();
         xEventGroupClearBits(wifi_event_group, CONNECTED_BIT);
         break;
@@ -350,23 +368,48 @@ static void initialise_wifi(void)
     wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
     ESP_ERROR_CHECK( esp_wifi_init(&cfg) );
     ESP_ERROR_CHECK( esp_wifi_set_storage(WIFI_STORAGE_RAM) );
+
+#ifndef USE_SMARTCONFIG
     wifi_config_t wifi_config = {
         .sta = {
             .ssid = EXAMPLE_WIFI_SSID,
             .password = EXAMPLE_WIFI_PASS,
         },
     };
+#endif
+
     ESP_LOGI(TAG, "Setting WiFi configuration SSID %s...", wifi_config.sta.ssid);
     ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_STA) );
+
+#ifndef USE_SMARTCONFIG
     ESP_ERROR_CHECK( esp_wifi_set_config(ESP_IF_WIFI_STA, &wifi_config) );
+#endif
+
     ESP_ERROR_CHECK( esp_wifi_start() );
+}
+
+/**
+ * 使用UART1进行调试的输出
+ */
+void user_uart_init(void)
+{
+#ifdef USE_UART_ONE
+	uart_config_t uart_config = {
+		.baud_rate = 74880,
+		.data_bits = UART_DATA_8_BITS,
+		.parity = UART_PARITY_DISABLE,
+		.stop_bits = UART_STOP_BITS_1,
+		.flow_ctrl = UART_HW_FLOWCTRL_DISABLE
+	};
+	uart_param_config(EX_UART_NUM, &uart_config);
+#endif
 }
 
 void app_main()
 {
-    // Initialize NVS.
     ESP_ERROR_CHECK( nvs_flash_init() );
 
     initialise_wifi();
+    user_uart_init();
     xTaskCreate(&mqtt_task, "mqtt_task", 8192, NULL, 5, NULL);
 }
