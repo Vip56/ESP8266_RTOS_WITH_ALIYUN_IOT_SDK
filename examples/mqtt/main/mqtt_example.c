@@ -87,6 +87,8 @@ static char __device_secret[DEVICE_SECRET_LEN + 1];
 #define MQTT_MSGLEN             (1024)
 #define BUF_SIZE                (1024)
 #define RD_BUF_SIZE             (1024)
+#define REQUEST_TIMEOUT_MS      (2000)
+#define KEEPALIVE_INTERVAL_MS   (60000)
 
 #ifdef USE_UART0_SEND_DATA
 static QueueHandle_t uart0_queue;
@@ -265,16 +267,15 @@ int mqtt_client(void)
     mqtt_params.password = pconn_info->password;
     mqtt_params.pub_key = pconn_info->pub_key;
 
-    mqtt_params.request_timeout_ms = 2000;
+    mqtt_params.request_timeout_ms = REQUEST_TIMEOUT_MS;
     mqtt_params.clean_session = 0;
-    mqtt_params.keepalive_interval_ms = 30000;
+    mqtt_params.keepalive_interval_ms = KEEPALIVE_INTERVAL_MS;
     mqtt_params.read_buf_size = MQTT_MSGLEN;
     mqtt_params.write_buf_size = MQTT_MSGLEN;
 
     mqtt_params.handle_event.h_fp = event_handle;
     mqtt_params.handle_event.pcontext = NULL;
 
-    /* Construct a MQTT client with specify parameter */
     pclient = IOT_MQTT_Construct(&mqtt_params);
     if (NULL == pclient) {
         EXAMPLE_TRACE("MQTT construct failed");
