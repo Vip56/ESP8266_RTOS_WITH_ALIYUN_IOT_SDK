@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2016 Alibaba Group. All rights reserved.
+ * Copyright (c) 2014-2018 Alibaba Group. All rights reserved.
  * License-Identifier: Apache-2.0
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may
@@ -49,8 +49,8 @@
  * 去掉以下注释即可
  */
 
-#ifndef USE_UART_ONE
-#define USE_UART_ONE
+#ifndef USE_UART0_SEND_DATA
+#define USE_UART0_SEND_DATA
 #endif
 
 
@@ -61,7 +61,7 @@
 #define DEVICE_NAME             CONFIG_DEVICE_NAME
 #define DEVICE_SECRET           CONFIG_DEVICE_SECRET
 
-#define EX_UART_NUM UART_NUM_1
+#define EX_UART_NUM UART_NUM_0
 
 static EventGroupHandle_t wifi_event_group;
 static const int CONNECTED_BIT = BIT0;
@@ -85,6 +85,13 @@ static char __device_secret[DEVICE_SECRET_LEN + 1];
 #define TOPIC_DATA_FMT              "/%s/%s/data"
 
 #define MQTT_MSGLEN             (1024)
+#define BUF_SIZE                (1024)
+#define RD_BUF_SIZE             (1024)
+
+#ifdef USE_UART0_SEND_DATA
+static QueueHandle_t uart0_queue;
+#endif
+
 void mqtt_task(void *pvParameter);
 
 #define EXAMPLE_TRACE(fmt, ...)  \
@@ -228,6 +235,8 @@ void event_handle(void *pcontext, void *pclient, iotx_mqtt_event_msg_pt msg)
 
 int mqtt_client(void)
 {
+	uart_event_t event;
+	uint8_t *dtmp = (uint8_t *)malloc(RD_BUF_SIZE);
     int rc = 0, msg_len, cnt = 0;
     void *pclient;
     iotx_conn_info_pt pconn_info;
@@ -280,6 +289,43 @@ int mqtt_client(void)
     topic_msg.dup = 0;
 
     do {
+#ifdef USE_UART0_SEND_DATA
+    	if(xQueueReceive(uart0_queue, (void *)&event, (portTickType)portMAX_DELAY))
+    	{
+    		bzero(dtmp, RD_BUF_SIZE);
+    		if(event.type == UART_DATA)
+    		{
+    			uart_read_bytes(EX_UART_NUM, dtmp, event.size, portMAX_DELAY);
+    			msg_len = snprintf(msg_pub, sizeof(msg_pub), (const char*)dtmp);
+    			if (msg_len < 0) {
+    				EXAMPLE_TRACE("Error occur! Exit program");
+    				rc = -1;
+    				break;
+    			}
+
+    			topic_msg.payload = (void *)msg_pub;
+    			topic_msg.payload_len = msg_len;
+
+    			rc = IOT_MQTT_Publish(pclient, TOPIC_DATA, &topic_msg);
+    			if (rc < 0) {
+    				EXAMPLE_TRACE("error occur when publish");
+    				rc = -1;
+    				break;
+    			}
+    			EXAMPLE_TRACE("packet-id=%u", (uint32_t)rc);
+    		}
+    		else if(event.type == UART_FIFO_OVF)
+    		{
+    			uart_flush_input(EX_UART_NUM);
+    			xQueueReset(uart0_queue);
+    		}
+    		else if(event.type == UART_BUFFER_FULL)
+    		{
+    			uart_flush_input(EX_UART_NUM);
+    			xQueueReset(uart0_queue);
+    		}
+    	}
+#else
         /* Generate topic message */
         cnt++;
         msg_len = snprintf(msg_pub, sizeof(msg_pub), "{\"attr_name\":\"temperature\", \"attr_value\":\"%d\"}", cnt);
@@ -299,11 +345,13 @@ int mqtt_client(void)
             break;
         }
         EXAMPLE_TRACE("packet-id=%u, publish topic msg=%s", (uint32_t)rc, msg_pub);
-
-        /* handle the MQTT packet received from TCP or SSL connection */
+#endif
         IOT_MQTT_Yield(pclient, 200);
         HAL_SleepMs(100);
     } while (1);
+
+    free(dtmp);
+    dtmp = NULL;
 
     IOT_MQTT_Yield(pclient, 200);
 
@@ -327,14 +375,14 @@ void mqtt_task(void *pvParameter)
         HAL_SetDeviceName(DEVICE_NAME);
         HAL_SetDeviceSecret(DEVICE_SECRET);
 
-        ESP_LOGI(TAG, "MQTT client example begin, free heap size:%d", esp_get_free_heap_size());
+        ESP_LOGI(TAG, "MQTT client example begin");
 
         mqtt_client();
 
         IOT_DumpMemoryStats(IOT_LOG_DEBUG);
         IOT_CloseLog();
 
-        ESP_LOGI(TAG, "MQTT client example end, free heap size:%d", esp_get_free_heap_size());
+        ESP_LOGI(TAG, "MQTT client example end");
     }
 }
 
@@ -390,19 +438,20 @@ static void initialise_wifi(void)
 }
 
 /**
- * 使用UART1进行调试的输出
+ * 使用UART0进行数据通信
  */
 void user_uart_init(void)
 {
-#ifdef USE_UART_ONE
+#ifdef USE_UART0_SEND_DATA
 	uart_config_t uart_config = {
-		.baud_rate = 74880,
+		.baud_rate = 115200,
 		.data_bits = UART_DATA_8_BITS,
 		.parity = UART_PARITY_DISABLE,
 		.stop_bits = UART_STOP_BITS_1,
 		.flow_ctrl = UART_HW_FLOWCTRL_DISABLE
 	};
 	uart_param_config(EX_UART_NUM, &uart_config);
+	uart_driver_install(EX_UART_NUM, BUF_SIZE * 2, BUF_SIZE * 2, 100, &uart0_queue);
 #endif
 }
 
