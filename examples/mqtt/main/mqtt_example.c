@@ -235,6 +235,12 @@ void event_handle(void *pcontext, void *pclient, iotx_mqtt_event_msg_pt msg)
     }
 }
 
+static void message_arrive(void *pcontext, void *pclient, iotx_mqtt_event_msg_pt msg)
+{
+	iotx_mqtt_topic_info_pt ptopic_info = (iotx_mqtt_topic_info_pt)msg->msg;
+	uart_write_bytes(EX_UART_NUM, ptopic_info->payload, ptopic_info->topic_len);
+}
+
 int mqtt_client(void)
 {
 	uart_event_t event;
@@ -281,6 +287,14 @@ int mqtt_client(void)
         EXAMPLE_TRACE("MQTT construct failed");
         rc = -1;
         goto do_exit;
+    }
+
+    rc = IOT_MQTT_Subscribe(pclient, TOPIC_GET, IOTX_MQTT_QOS1, message_arrive, NULL);
+    if (rc < 0) {
+    	IOT_MQTT_Destroy(&pclient);
+    	EXAMPLE_TRACE("IOT_MQTT_Subscribe() failed, rc = %d", rc);
+    	rc = -1;
+    	goto do_exit;
     }
 
     /* Initialize topic information */
