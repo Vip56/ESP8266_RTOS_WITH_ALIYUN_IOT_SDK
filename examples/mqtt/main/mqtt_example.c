@@ -241,7 +241,7 @@ static void message_arrive(void *pcontext, void *pclient, iotx_mqtt_event_msg_pt
 	uart_write_bytes(EX_UART_NUM, ptopic_info->payload, ptopic_info->topic_len);
 }
 
-int mqtt_client(void)
+int self_mqtt_client(void)
 {
 	uart_event_t event;
 	uint8_t *dtmp = (uint8_t *)malloc(RD_BUF_SIZE);
@@ -392,7 +392,7 @@ void mqtt_task(void *pvParameter)
 
         ESP_LOGI(TAG, "MQTT client example begin");
 
-        mqtt_client();
+        self_mqtt_client();
 
         IOT_DumpMemoryStats(IOT_LOG_DEBUG);
         IOT_CloseLog();
