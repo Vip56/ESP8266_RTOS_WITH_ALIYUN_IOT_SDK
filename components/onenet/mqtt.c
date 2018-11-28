@@ -46,7 +46,9 @@ static void mqtt_queue(mqtt_client *client)
 
 static bool client_connect(mqtt_client *client)
 {
+#if defined(CONFIG_MQTT_SECURITY_ON)
     int ret;
+#endif
     struct sockaddr_in remote_ip;
 
     while (1) {
@@ -183,7 +185,7 @@ void closeclient(mqtt_client *client)
  */
 static bool mqtt_connect(mqtt_client *client)
 {
-    int write_len, read_len, connect_rsp_code;
+    int read_len, connect_rsp_code;
     struct timeval tv;
 
     tv.tv_sec = 10;  /* 30 Secs Timeout */
@@ -203,9 +205,9 @@ static bool mqtt_connect(mqtt_client *client)
               client->mqtt_state.pending_msg_type,
               client->mqtt_state.pending_msg_id);
 
-    write_len = ClientWrite(
-                      client->mqtt_state.outbound_message->data,
-                      client->mqtt_state.outbound_message->length);
+    ClientWrite(
+                client->mqtt_state.outbound_message->data,
+                client->mqtt_state.outbound_message->length);
 
     mqtt_info("Reading MQTT CONNECT response message");
 
